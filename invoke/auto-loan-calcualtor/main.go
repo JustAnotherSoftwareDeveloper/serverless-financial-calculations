@@ -1,40 +1,31 @@
 package main
 
 import (
-	"bytes"
-	"context"
-	"encoding/json"
+	"fmt"
+	"math"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"math/big"
 )
 
-// Response is of type APIGatewayProxyResponse since we're leveraging the
-// AWS Lambda Proxy Request functionality (default behavior)
-//
-// https://serverless.com/framework/docs/providers/aws/events/apigateway/#lambda-proxy-integration
-type Response events.APIGatewayProxyResponse
-
-type EventBody {
-	
+type AutoLoanCalcEventBody struct {
+	DurationMonths    int
+	TotalLoanAmount   int
+	InterestInPercent float64
+	DownPayment       int
 }
+
 // Handler is our lambda handler invoked by the `lambda.Start` function call
-func Handler(ctx context.Context) (Response, error) {
-	var buf bytes.Buffer
-
-	body, err := json.Marshal(map[string]interface{}{
-		"message": "Go Serverless v1.0! Your function executed successfully!",
-	})
-	if err != nil {
-		return Response{StatusCode: 404}, err
-	}
-	json.HTMLEscape(&buf, body)
-
-	resp := Response{
+func Handler(request AutoLoanCalcEventBody) (events.APIGatewayProxyResponse, error) {
+	costToAmort := request.TotalLoanAmount - request.DownPayment
+	interestRate := request.InterestInPercent / 100
+	interestCost := math.Pow(1+interestRate, float64(request.DurationMonths)/12)
+	totalLoanCost := float64(costToAmort) * interestCost
+	monthlyCost := totalLoanCost / 12
+	resp := events.APIGatewayProxyResponse{
 		StatusCode:      200,
 		IsBase64Encoded: false,
-		Body:            buf.String(),
+		Body:            fmt.Sprintf("%f", monthlyCost),
 		Headers: map[string]string{
 			"Content-Type":           "application/json",
 			"X-MyCompany-Func-Reply": "hello-handler",
