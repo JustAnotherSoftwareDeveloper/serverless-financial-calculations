@@ -19,16 +19,19 @@ type AutoLoanCalcEventBody struct {
 func Handler(request AutoLoanCalcEventBody) (events.APIGatewayProxyResponse, error) {
 	costToAmort := request.TotalLoanAmount - request.DownPayment
 	interestRate := request.InterestInPercent / 100
-	interestCost := math.Pow(1+interestRate, float64(request.DurationMonths)/12)
-	totalLoanCost := float64(costToAmort) * interestCost
-	monthlyCost := totalLoanCost / 12
+	monthlyInterest := interestRate / 12
+	// (Total Amount)(Monthy Interest)(1+monthy interest)^months
+	topHalfOfFunction := float64(costToAmort) * (monthlyInterest) * math.Pow(1+monthlyInterest, float64(request.DurationMonths))
+	// (1 + monthly interest)^months - 1
+	bottomHalfOfFunction := math.Pow(1+monthlyInterest, float64(request.DurationMonths)) - 1
+	monthlyCost := math.Floor(100*topHalfOfFunction/bottomHalfOfFunction) / 100
 	resp := events.APIGatewayProxyResponse{
 		StatusCode:      200,
 		IsBase64Encoded: false,
-		Body:            fmt.Sprintf("%f", monthlyCost),
+		Body:            fmt.Sprintf("$%.2f", monthlyCost),
 		Headers: map[string]string{
-			"Content-Type":           "application/json",
-			"X-MyCompany-Func-Reply": "hello-handler",
+			"Content-Type":           "text/plain",
+			"X-MyCompany-Func-Reply": "auto-load-calculator",
 		},
 	}
 

@@ -1,6 +1,6 @@
 {
   "DurationMonths": 60,
-  "TotalLoanAmount": 20000,
+  "TotalLoanAmount": 30000,
   "InterestInPercent": 5.0,
-  "DownPayment": 0
+  "DownPayment": 10000
 }
