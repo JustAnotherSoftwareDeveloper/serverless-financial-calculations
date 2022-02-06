@@ -1,9 +1,8 @@
 package main
 
 import (
-	"bytes"
-	"context"
-	"encoding/json"
+	"fmt"
+	"math"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -14,27 +13,27 @@ import (
 //
 // https://serverless.com/framework/docs/providers/aws/events/apigateway/#lambda-proxy-integration
 type Response events.APIGatewayProxyResponse
+type CompoundInterestCalcEventBody struct {
+	Years             int
+	Principal         int
+	MonthlyPayment    int
+	ExpectedReturn    float64
+	ExpectedInflation float64
+}
 
 // Handler is our lambda handler invoked by the `lambda.Start` function call
-func Handler(ctx context.Context) (Response, error) {
-	print("Test")
-	var buf bytes.Buffer
-
-	body, err := json.Marshal(map[string]interface{}{
-		"message": "Go Serverless v1.0! Your function executed successfully!",
-	})
-	if err != nil {
-		return Response{StatusCode: 404}, err
-	}
-	json.HTMLEscape(&buf, body)
-
+func Handler(request CompoundInterestCalcEventBody) (Response, error) {
+	effectiveInterestRate := (request.ExpectedReturn - request.ExpectedInflation) / 100
+	principalGrowth := float64(request.Principal) * math.Pow(1+effectiveInterestRate, float64(request.Years))
+	monthlyContributions := float64(request.MonthlyPayment) * 12 * ((math.Pow(1+effectiveInterestRate, float64(request.Years)) - 1) / effectiveInterestRate)
+	totalAmount := math.Round(100*(monthlyContributions+principalGrowth)) / 100
 	resp := Response{
 		StatusCode:      200,
 		IsBase64Encoded: false,
-		Body:            buf.String(),
+		Body:            fmt.Sprintf("$%.2f", totalAmount),
 		Headers: map[string]string{
-			"Content-Type":           "application/json",
-			"X-MyCompany-Func-Reply": "hello-handler",
+			"Content-Type":           "text/plain",
+			"X-MyCompany-Func-Reply": "compound-interest-calculator",
 		},
 	}
 
